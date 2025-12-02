@@ -338,12 +338,14 @@ def parse_and_filter_studies(studies_raw):
         match = re.search(r'\d{4}', start_date_str)
         row['start_year'] = int(match.group()) if match else 0
 
-        # Label Generation
+        # --- Label Generation (Target) - FIXED Logic ---
         interventions_module = proto.get("armsInterventionsModule", {}) or {}
         interventions = interventions_module.get("interventions", []) or []
         drug_names_in_study = []
         is_success = 0
         
+        # Check approval status
+        is_approved_drug = False
         for item in interventions:
             if not isinstance(item, dict):
                 continue
@@ -353,9 +355,15 @@ def parse_and_filter_studies(studies_raw):
                     drug_names_in_study.append(name)
                     for approved in APPROVED_DRUGS_SET:
                         if approved in name:
-                            is_success = 1
+                            is_approved_drug = True
                             break
         
+        # Fix: Success requires BOTH approved drug AND completed status
+        if is_approved_drug and overall_status == 'COMPLETED':
+            is_success = 1
+        else:
+            is_success = 0
+            
         row['is_success'] = is_success
         primary_drug_name = drug_names_in_study[0] if drug_names_in_study else ""
 
@@ -708,4 +716,3 @@ if __name__ == "__main__":
 
     except Exception as e:
         print(f"Plotting Error: {e}")
-

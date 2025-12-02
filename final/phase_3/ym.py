@@ -201,11 +201,13 @@ def parse_and_filter_studies(studies_raw):
         match = re.search(r'\d{4}', start_date_str)
         row['start_year'] = int(match.group()) if match else 0
 
-        # --- Label Generation (Target) ---
+        # --- Label Generation (Target) - FIXED Logic ---
         interventions = proto.get("armsInterventionsModule", {}) .get("interventions", []) or []
         drug_names_in_study = []
         is_success = 0
         
+        # Check if any drug in the study is in the whitelist
+        is_approved_drug = False
         for item in interventions:
             if not isinstance(item, dict): continue
             if item.get("type") == "DRUG":
@@ -214,8 +216,14 @@ def parse_and_filter_studies(studies_raw):
                     drug_names_in_study.append(name)
                     for approved in APPROVED_DRUGS_SET:
                         if approved in name:
-                            is_success = 1
+                            is_approved_drug = True
                             break
+        
+        # Strict Label Logic: Must be Approved Drug AND Completed Trial
+        if is_approved_drug and overall_status == 'COMPLETED':
+            is_success = 1
+        else:
+            is_success = 0
         
         row['is_success'] = is_success
         

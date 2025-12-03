@@ -1,5 +1,5 @@
 import matplotlib
-# 必须在导入 pyplot 之前设置 backend，解决 SystemError 和 MacOS 兼容性问题
+# Set backend before importing pyplot to avoid SystemError on macOS
 matplotlib.use('Agg') 
 import matplotlib.pyplot as plt
 
@@ -16,13 +16,10 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
 import xgboost as xgb
 
-# ==========================================
-# 1. Configuration
-# ==========================================
-
+# Configuration
 BASE_URL = "https://clinicaltrials.gov/api/v2/studies"
 
-# 大药企列表 (Big Pharma)
+# Big Pharma companies list
 BIG_PHARMA_LIST = [
     'biogen', 'lilly', 'pfizer', 'roche', 'genentech', 'merck', 
     'abbvie', 'novartis', 'janssen', 'eisai', 'astrazeneca', 'bayer',
@@ -30,9 +27,7 @@ BIG_PHARMA_LIST = [
     'squibb', 'bms', 'amgen', 'gilead', 'regeneron'
 ]
 
-# ==========================================
-# 2. ETL Module: Robust Data Fetching
-# ==========================================
+# Data Fetching Functions
 
 def fetch_all_ad_trials_robust():
     studies = []
@@ -44,7 +39,7 @@ def fetch_all_ad_trials_robust():
         'Accept': 'application/json'
     }
 
-    print("🚀 Starting Data Extraction (Download All -> Filter Locally)...")
+    print("Starting data extraction (download all, filter locally)...")
     
     while True:
         params = {
@@ -85,18 +80,16 @@ def fetch_all_ad_trials_robust():
                 if attempt < max_retries - 1:
                     time.sleep(1)
                 else:
-                    print(f"❌ Error fetching data: {e}")
+                    print(f"Error fetching data: {e}")
                     return studies
         
         if not next_page_token:
             break
             
-    print(f"✅ Download Complete. Total Raw Studies: {len(studies)}")
+    print(f"Download complete. Total raw studies: {len(studies)}")
     return studies
 
-# ==========================================
-# 3. Helper Functions
-# ==========================================
+# Helper Functions
 
 def is_big_pharma(sponsor_name):
     if not sponsor_name: return 0
@@ -124,13 +117,10 @@ def extract_planned_duration(outcomes):
             except: continue
     return max_weeks / MONTHS_TO_WEEKS if max_weeks > 0 else None
 
-# ==========================================
-# 4. Parsing Logic (Phase 1 Filtering & Features)
-# ==========================================
-
+# Data Parsing and Feature Extraction
 def parse_and_filter_phase1(studies_raw):
     rows = []
-    print("🧹 Filtering data locally for PHASE 1...")
+    print("Filtering data locally for Phase 1 trials...")
     
     for study in studies_raw:
         if not isinstance(study, dict): continue
@@ -218,17 +208,14 @@ def parse_and_filter_phase1(studies_raw):
     
     return pd.DataFrame(rows)
 
-# ==========================================
-# 5. Main Execution
-# ==========================================
-
+# Main Execution
 if __name__ == "__main__":
     raw_data = fetch_all_ad_trials_robust()
     if not raw_data: exit(1)
 
     df = parse_and_filter_phase1(raw_data)
     if df.empty:
-        print("❌ No Phase 1 trials found after filtering.")
+        print("No Phase 1 trials found after filtering.")
         exit(1)
 
     df = df[df['start_year'] > 0].copy()
@@ -243,14 +230,14 @@ if __name__ == "__main__":
         split_year = int(df['start_year'].quantile(0.80))
         if split_year < 2000 or split_year > 2030: split_year = 2018
     
-    print(f"✂️  Splitting data at year: {split_year}")
+    print(f"Splitting data at year: {split_year}")
     
     train_mask = df['start_year'] < split_year
     train_df = df[train_mask].copy()
     test_df = df[~train_mask].copy()
 
     if len(train_df) < 10 or len(test_df) < 5:
-        print("⚠️ Fallback to Random Split")
+        print("Warning: Fallback to random split")
         train_df, test_df = train_test_split(df, test_size=0.2, random_state=42, stratify=df['is_success'])
 
     y_train = train_df['is_success']
@@ -280,11 +267,10 @@ if __name__ == "__main__":
     available_numeric = [f for f in numeric_features if f in train_df.columns]
     available_categorical = [f for f in categorical_features if f in train_df.columns]
     
-    # --- 关键修复：强制转换类型，防止 Imputer 报错 ---
+    # Convert categorical columns to string type to prevent imputer errors
     for col in available_categorical:
         train_df[col] = train_df[col].astype(str)
         test_df[col] = test_df[col].astype(str)
-    # ---------------------------------------------
     
     X_train = train_df[available_numeric + available_categorical]
     X_test = test_df[available_numeric + available_categorical]
@@ -323,13 +309,13 @@ if __name__ == "__main__":
         ))
     ])
     
-    print("\n🔧 Training Model (Phase 1)...")
+    print("\nTraining model (Phase 1)...")
     model.fit(X_train, y_train)
 
     y_prob = model.predict_proba(X_test)[:, 1]
     y_pred = model.predict(X_test)
 
-    print("\n🏆 Results:")
+    print("\nResults:")
     try:
         if y_test.nunique() > 1:
             print(f"ROC-AUC: {roc_auc_score(y_test, y_prob):.4f}")
@@ -355,7 +341,7 @@ if __name__ == "__main__":
         plt.title('Top 15 Feature Importance (Phase 1 Success)')
         plt.tight_layout()
         plt.savefig('phase1_feature_importance.png')
-        print("\n✅ Saved 'phase1_feature_importance.png'")
+        print("\nSaved 'phase1_feature_importance.png'")
         plt.close()
 
         if y_test.nunique() > 1:
@@ -367,8 +353,41 @@ if __name__ == "__main__":
             plt.title('Precision-Recall Curve (Phase 1)')
             plt.legend()
             plt.savefig('phase1_pr_curve.png')
-            print("✅ Saved 'phase1_pr_curve.png'")
+            print("Saved 'phase1_pr_curve.png'")
             plt.close()
 
     except Exception as e:
         print(f"Plotting Error: {e}")
+'''
+AI Citation and Acknowledgement
+
+For this project, AI assistance was utilized strictly as a productivity tool for
+code implementation, debugging, and initial ideation. The core scientific logic,
+feature strategy, and final decision-making remained human-driven.
+
+Timeline of AI Usage:
+
+1. Ideation & Feasibility (November 11, 2025)
+   Model: Gemini 2 Pro
+   - Assisted with initial topic brainstorming.
+   - Evaluated the feasibility of data availability for different disease scopes.
+
+2. Logic Discussion & Prototyping (November 22, 2025)
+   Models: ChatGPT 5.1, Claude Sonnet 4.5
+   - Discussed the logic for the "White-List" labeling approach versus using API status fields.
+   - Provided initial syntax examples for regex patterns to extract text-based features.
+   - Drafted basic pandas operations for data cleaning.
+
+3. Implementation & Engineering (December 1, 2025)
+   Model: Gemini 3 Pro
+   - Generated boilerplate code for the ClinicalTrials.gov API fetcher (pagination and retry logic).
+   - Refactored the codebase for modularity and standardized comment styles.
+   - Debugged syntax errors within the sklearn Pipeline (specifically the ColumnTransformer).
+   - Resolved data type inconsistencies (string vs integer) during the imputation process.
+
+Statement of Originality:
+The critical intellectual contributions—including the project hypothesis, the specific
+selection of Phase features, the decision to use XGBoost, and the final interpretation
+of the PR-AUC/Confusion Matrix results—were developed manually by the team. AI served
+as a coding assistant for execution rather than a replacement for analytical reasoning.
+'''

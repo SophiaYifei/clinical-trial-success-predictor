@@ -58,12 +58,20 @@ Our final model (`phase1_completion_prediction.py`) achieved strong predictive s
 
 ## 🚀 How to Run
 
-1.  **Install Dependencies:**
+**Important:** All operations should be performed on the `main` branch.
+
+1.  **Ensure you're on the main branch:**
+    ```bash
+    git checkout main
+    git pull origin main
+    ```
+
+2.  **Install Dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
 
-2.  **Run the Prediction Script:**
+3.  **Run the Prediction Script:**
     ```bash
     python phase1_completion_prediction.py
     ```

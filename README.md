@@ -62,6 +62,7 @@ Our final model (`phase1_completion_prediction.py`) achieved strong predictive s
 
 1.  **Ensure you're on the main branch:**
     ```bash
+    git clone https://github.com/SophiaYifei/clinical-trial-success-predictor.git
     git checkout main
     git pull origin main
     ```
